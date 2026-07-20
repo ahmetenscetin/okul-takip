@@ -12,18 +12,28 @@ body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#0f
 .card{background:rgba(255,255,255,.08);padding:18px;border-radius:22px;backdrop-filter:blur(8px);margin-bottom:16px}
 h1{margin:0 0 8px;font-size:28px}
 h2{margin-top:0;font-size:19px;color:#22d3ee}
+h3{margin:14px 0 6px;font-size:15px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
 .muted{color:#d1d5db;font-size:14px}
-input,button,textarea{width:100%;padding:12px;border-radius:14px;border:none;margin-top:10px;font-size:15px;font-family:inherit}
-input,textarea{background:#e5e7eb;color:#000}
+input,button,textarea,select{width:100%;padding:12px;border-radius:14px;border:none;margin-top:10px;font-size:15px;font-family:inherit}
+input,textarea,select{background:#e5e7eb;color:#000}
 button{background:#22d3ee;font-weight:700;cursor:pointer;color:#0f172a}
 button.secondary{background:#334155;color:#fff}
 button.danger{background:#ef4444;color:#fff}
+button.small{width:auto;padding:6px 12px;margin:0;font-size:13px}
 .row{display:flex;gap:10px}
 .row>*{flex:1}
 .hidden{display:none !important}
-.student-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1);gap:10px}
-.student-row span{flex:1}
+.class-group{margin-top:14px}
+.class-header{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.15);margin-bottom:6px}
+.class-header b{color:#22d3ee}
+.class-chip-del{width:auto;padding:4px 10px;margin:0;font-size:12px}
+.student-row{padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08)}
+.student-row-main{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
+.student-row-main span{flex:1}
 .pct-badge{padding:4px 10px;border-radius:999px;background:#334155;font-size:13px;font-weight:700}
+.student-detail{display:none;margin-top:8px;padding:10px;background:rgba(255,255,255,0.05);border-radius:12px;font-size:13px}
+.student-detail.open{display:block}
+.detail-chip{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
 .assignment-block{border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;margin-top:12px}
 .assignment-student{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin-top:8px}
 .assignment-student input{margin-top:0}
@@ -31,6 +41,11 @@ button.danger{background:#ef4444;color:#fff}
 .err{color:#fca5a5;font-size:14px;margin-top:8px}
 .link-btn{background:none;color:#22d3ee;text-decoration:underline;width:auto;padding:0;margin-top:12px;font-size:14px}
 .topbar{display:flex;justify-content:space-between;align-items:center}
+.week-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);gap:8px}
+.week-row .info{flex:1}
+.week-row .info b{color:#22d3ee}
+.week-row .info div{font-size:13px;color:#cbd5e1;white-space:pre-line;margin-top:2px}
+.chips{display:flex;gap:6px}
 </style>
 </head>
 <body>
@@ -58,20 +73,32 @@ button.danger{background:#ef4444;color:#fff}
       <div>
         <h1>Ödev Takip Paneli</h1>
         <div class="muted" id="userEmailLabel"></div>
+        <div class="muted" style="margin-top:6px">Kullanıcı ID: <span id="uidLabel"></span></div>
       </div>
       <button class="secondary" style="width:auto;padding:10px 16px" onclick="handleLogout()">Çıkış</button>
+    </div>
+
+    <div class="card">
+      <h2>🏫 Sınıflar</h2>
+      <div class="row">
+        <input type="text" id="newClassName" placeholder="Sınıf adı (örn: 11/A)">
+        <button style="max-width:140px" onclick="addClass()">Ekle</button>
+      </div>
+      <div id="classesList" class="muted" style="margin-top:10px">Yükleniyor...</div>
     </div>
 
     <div class="card">
       <h2>👤 Öğrenci Ekle</h2>
       <div class="row">
         <input type="text" id="newStudentName" placeholder="Öğrenci adı soyadı">
+        <select id="newStudentClass"><option value="">Sınıfsız</option></select>
         <button style="max-width:140px" onclick="addStudent()">Ekle</button>
       </div>
     </div>
 
     <div class="card">
       <h2>📋 Öğrenciler ve Başarı Yüzdeleri</h2>
+      <div class="muted">Bir öğrenciye tıklayınca ödev bazlı detay açılır.</div>
       <div id="studentsList" class="muted">Yükleniyor...</div>
     </div>
 
@@ -87,6 +114,19 @@ button.danger{background:#ef4444;color:#fff}
       <h2>📚 Ödevler</h2>
       <div id="assignmentsList" class="muted">Yükleniyor...</div>
     </div>
+
+    <div class="card">
+      <h2>📖 Haftalık Konu Planı</h2>
+      <div class="muted">Bu bilgiler genel (herkese açık) panelde gösterilir.</div>
+      <input type="text" id="weekLabel" placeholder="Hafta etiketi (örn: 1-5 Nisan / Nisan 1. Hafta)">
+      <input type="date" id="weekStartDate">
+      <textarea id="weekTopics" rows="3" placeholder="Bu hafta işlenecek konular / kazanımlar"></textarea>
+      <div class="row">
+        <button onclick="saveWeek()" id="weekSaveBtn">Ekle</button>
+        <button class="secondary" onclick="cancelWeekEdit()" id="weekCancelBtn" style="display:none">Vazgeç</button>
+      </div>
+      <div id="weeklyPlanList" class="muted" style="margin-top:12px">Yükleniyor...</div>
+    </div>
   </div>
 
 </div>
@@ -98,7 +138,7 @@ import {
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, doc, setDoc, getDoc, collection, addDoc,
+  getFirestore, doc, setDoc, collection, addDoc,
   onSnapshot, updateDoc, deleteDoc, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -117,10 +157,15 @@ const db = getFirestore(app);
 
 let isRegisterMode = false;
 let currentUser = null;
-let studentsCache = [];       // {id, name}
-let assignmentsCache = [];    // {id, title, completions: {studentId: {pct, note}}}
-let unsubStudents = null;
-let unsubAssignments = null;
+
+let studentsCache = [];    // {id, name, classId}
+let classesCache = [];     // {id, name}
+let assignmentsCache = []; // {id, title, completions:{studentId:{pct,note}}}
+let weeklyPlanCache = [];  // {id, label, startDate, topics}
+let editingWeekId = null;
+let openStudentDetail = {}; // studentId -> bool
+
+let unsubs = [];
 
 // ---------- AUTH ----------
 window.toggleAuthMode = function() {
@@ -136,16 +181,12 @@ window.handleAuth = async function() {
   const password = document.getElementById('authPassword').value;
   const errEl = document.getElementById('authError');
   errEl.textContent = "";
-
   if (!email || !password) { errEl.textContent = "E-posta ve şifre gerekli."; return; }
-
   try {
     if (isRegisterMode) {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await setDoc(doc(db, "teachers", cred.user.uid), {
-        email: email,
-        isPaid: false,
-        createdAt: new Date().toISOString()
+        email: email, isPaid: false, createdAt: new Date().toISOString()
       });
     } else {
       await signInWithEmailAndPassword(auth, email, password);
@@ -155,9 +196,7 @@ window.handleAuth = async function() {
   }
 };
 
-window.handleLogout = function() {
-  signOut(auth);
-};
+window.handleLogout = function() { signOut(auth); };
 
 function translateFirebaseError(code) {
   const map = {
@@ -173,28 +212,98 @@ function translateFirebaseError(code) {
 
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
+  unsubs.forEach(u => u());
+  unsubs = [];
   if (user) {
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('userEmailLabel').textContent = user.email;
-    listenStudents();
-    listenAssignments();
+    document.getElementById('uidLabel').textContent = user.uid;
+    unsubs.push(listenClasses());
+    unsubs.push(listenStudents());
+    unsubs.push(listenAssignments());
+    unsubs.push(listenWeeklyPlan());
   } else {
     document.getElementById('authScreen').classList.remove('hidden');
     document.getElementById('dashboard').classList.add('hidden');
-    if (unsubStudents) unsubStudents();
-    if (unsubAssignments) unsubAssignments();
   }
 });
+
+// ---------- CLASSES ----------
+window.addClass = async function() {
+  const input = document.getElementById('newClassName');
+  const name = input.value.trim();
+  if (!name) return;
+  await addDoc(collection(db, "teachers", currentUser.uid, "classes"), {
+    name: name, createdAt: new Date().toISOString()
+  });
+  input.value = "";
+};
+
+window.deleteClass = async function(classId) {
+  if (!confirm("Bu sınıfı silmek istediğine emin misin? (Öğrenciler silinmez, sınıfsız kalır)")) return;
+  await deleteDoc(doc(db, "teachers", currentUser.uid, "classes", classId));
+};
+
+function listenClasses() {
+  const q = query(collection(db, "teachers", currentUser.uid, "classes"), orderBy("createdAt", "asc"));
+  return onSnapshot(q, (snap) => {
+    classesCache = [];
+    snap.forEach(d => classesCache.push({ id: d.id, ...d.data() }));
+    renderClasses();
+    renderStudentClassSelect();
+    renderStudents();
+    renderAssignments();
+  });
+}
+
+function renderClasses() {
+  const el = document.getElementById('classesList');
+  if (classesCache.length === 0) { el.innerHTML = "Henüz sınıf eklenmedi."; return; }
+  el.innerHTML = "";
+  classesCache.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'class-header';
+    row.innerHTML = `<b>${escapeHtml(c.name)}</b><button class="danger class-chip-del" onclick="deleteClass('${c.id}')">Sil</button>`;
+    el.appendChild(row);
+  });
+}
+
+function renderStudentClassSelect() {
+  const sel = document.getElementById('newStudentClass');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">Sınıfsız</option>';
+  classesCache.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+  sel.value = currentVal;
+}
+
+function className(classId) {
+  const c = classesCache.find(x => x.id === classId);
+  return c ? c.name : "Sınıfsız";
+}
+
+function groupByClass(list) {
+  const groups = {};
+  list.forEach(item => {
+    const key = className(item.classId);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  });
+  return groups;
+}
 
 // ---------- STUDENTS ----------
 window.addStudent = async function() {
   const nameInput = document.getElementById('newStudentName');
+  const classSelect = document.getElementById('newStudentClass');
   const name = nameInput.value.trim();
   if (!name) return;
   await addDoc(collection(db, "teachers", currentUser.uid, "students"), {
-    name: name,
-    createdAt: new Date().toISOString()
+    name: name, classId: classSelect.value || null, createdAt: new Date().toISOString()
   });
   nameInput.value = "";
 };
@@ -204,9 +313,14 @@ window.deleteStudent = async function(studentId) {
   await deleteDoc(doc(db, "teachers", currentUser.uid, "students", studentId));
 };
 
+window.toggleStudentDetail = function(studentId) {
+  openStudentDetail[studentId] = !openStudentDetail[studentId];
+  renderStudents();
+};
+
 function listenStudents() {
   const q = query(collection(db, "teachers", currentUser.uid, "students"), orderBy("createdAt", "asc"));
-  unsubStudents = onSnapshot(q, (snap) => {
+  return onSnapshot(q, (snap) => {
     studentsCache = [];
     snap.forEach(d => studentsCache.push({ id: d.id, ...d.data() }));
     renderStudents();
@@ -214,32 +328,52 @@ function listenStudents() {
   });
 }
 
+function studentAssignmentBreakdown(studentId) {
+  return assignmentsCache
+    .filter(a => a.completions && a.completions[studentId] && a.completions[studentId].pct !== null && a.completions[studentId].pct !== undefined)
+    .map(a => ({ title: a.title, pct: a.completions[studentId].pct }));
+}
+
 function calcAverage(studentId) {
-  const pcts = assignmentsCache
-    .map(a => a.completions && a.completions[studentId] ? a.completions[studentId].pct : null)
-    .filter(p => p !== null && p !== undefined);
-  if (pcts.length === 0) return null;
-  const sum = pcts.reduce((a,b) => a + Number(b), 0);
-  return Math.round(sum / pcts.length);
+  const items = studentAssignmentBreakdown(studentId);
+  if (items.length === 0) return null;
+  const sum = items.reduce((a, b) => a + Number(b.pct), 0);
+  return Math.round(sum / items.length);
 }
 
 function renderStudents() {
   const el = document.getElementById('studentsList');
-  if (studentsCache.length === 0) {
-    el.innerHTML = "Henüz öğrenci eklenmedi.";
-    return;
-  }
+  if (studentsCache.length === 0) { el.innerHTML = "Henüz öğrenci eklenmedi."; return; }
   el.innerHTML = "";
-  studentsCache.forEach(s => {
-    const avg = calcAverage(s.id);
-    const row = document.createElement('div');
-    row.className = 'student-row';
-    row.innerHTML = `
-      <span>${escapeHtml(s.name)}</span>
-      <span class="pct-badge">${avg === null ? '—' : avg + '%'}</span>
-      <button class="danger" style="width:auto;padding:6px 12px;margin:0" onclick="deleteStudent('${s.id}')">Sil</button>
-    `;
-    el.appendChild(row);
+  const groups = groupByClass(studentsCache);
+  Object.keys(groups).sort((a,b) => a === "Sınıfsız" ? 1 : b === "Sınıfsız" ? -1 : a.localeCompare(b,'tr')).forEach(gName => {
+    const wrap = document.createElement('div');
+    wrap.className = 'class-group';
+    const header = document.createElement('div');
+    header.className = 'class-header';
+    header.innerHTML = `<b>${escapeHtml(gName)}</b><span class="muted">${groups[gName].length} öğrenci</span>`;
+    wrap.appendChild(header);
+
+    groups[gName].forEach(s => {
+      const avg = calcAverage(s.id);
+      const breakdown = studentAssignmentBreakdown(s.id);
+      const row = document.createElement('div');
+      row.className = 'student-row';
+      const isOpen = !!openStudentDetail[s.id];
+      let detailHtml = breakdown.length === 0
+        ? '<div class="muted">Henüz ödev işaretlenmedi.</div>'
+        : breakdown.map(b => `<div class="detail-chip"><span>${escapeHtml(b.title)}</span><span>${b.pct}%</span></div>`).join('');
+      row.innerHTML = `
+        <div class="student-row-main" onclick="toggleStudentDetail('${s.id}')">
+          <span>${escapeHtml(s.name)}</span>
+          <span class="pct-badge">${avg === null ? '—' : avg + '%'}</span>
+          <button class="danger small" onclick="event.stopPropagation(); deleteStudent('${s.id}')">Sil</button>
+        </div>
+        <div class="student-detail ${isOpen ? 'open' : ''}">${detailHtml}</div>
+      `;
+      wrap.appendChild(row);
+    });
+    el.appendChild(wrap);
   });
 }
 
@@ -249,9 +383,7 @@ window.addAssignment = async function() {
   const title = titleInput.value.trim();
   if (!title) return;
   await addDoc(collection(db, "teachers", currentUser.uid, "assignments"), {
-    title: title,
-    createdAt: new Date().toISOString(),
-    completions: {}
+    title: title, createdAt: new Date().toISOString(), completions: {}
   });
   titleInput.value = "";
 };
@@ -275,7 +407,7 @@ window.saveAssignment = async function(assignmentId) {
 
 function listenAssignments() {
   const q = query(collection(db, "teachers", currentUser.uid, "assignments"), orderBy("createdAt", "desc"));
-  unsubAssignments = onSnapshot(q, (snap) => {
+  return onSnapshot(q, (snap) => {
     assignmentsCache = [];
     snap.forEach(d => assignmentsCache.push({ id: d.id, ...d.data() }));
     renderAssignments();
@@ -285,40 +417,114 @@ function listenAssignments() {
 
 function renderAssignments() {
   const el = document.getElementById('assignmentsList');
-  if (assignmentsCache.length === 0) {
-    el.innerHTML = "Henüz ödev eklenmedi.";
-    return;
-  }
-  if (studentsCache.length === 0) {
-    el.innerHTML = "Ödevleri işaretlemek için önce öğrenci ekle.";
-    return;
-  }
+  if (assignmentsCache.length === 0) { el.innerHTML = "Henüz ödev eklenmedi."; return; }
+  if (studentsCache.length === 0) { el.innerHTML = "Ödevleri işaretlemek için önce öğrenci ekle."; return; }
   el.innerHTML = "";
+  const groups = groupByClass(studentsCache);
+
   assignmentsCache.forEach(a => {
     const block = document.createElement('div');
     block.className = 'assignment-block';
-    let studentsHtml = "";
-    studentsCache.forEach(s => {
-      const existing = (a.completions && a.completions[s.id]) || {};
-      const pct = existing.pct ?? "";
-      const note = existing.note ?? "";
-      studentsHtml += `
-        <div class="assignment-student">
-          <span>${escapeHtml(s.name)}</span>
-          <input type="number" min="0" max="100" placeholder="%" id="pct-${a.id}-${s.id}" value="${pct}">
-        </div>
-        <textarea class="assignment-note" rows="1" placeholder="Öğretmen notu (öğrenci görmez)" id="note-${a.id}-${s.id}">${escapeHtml(note)}</textarea>
-      `;
+    let groupsHtml = "";
+    Object.keys(groups).sort((x,y) => x === "Sınıfsız" ? 1 : y === "Sınıfsız" ? -1 : x.localeCompare(y,'tr')).forEach(gName => {
+      let studentsHtml = "";
+      groups[gName].forEach(s => {
+        const existing = (a.completions && a.completions[s.id]) || {};
+        const pct = existing.pct ?? "";
+        const note = existing.note ?? "";
+        studentsHtml += `
+          <div class="assignment-student">
+            <span>${escapeHtml(s.name)}</span>
+            <input type="number" min="0" max="100" placeholder="%" id="pct-${a.id}-${s.id}" value="${pct}">
+          </div>
+          <textarea class="assignment-note" rows="1" placeholder="Öğretmen notu (öğrenci görmez)" id="note-${a.id}-${s.id}">${escapeHtml(note)}</textarea>
+        `;
+      });
+      groupsHtml += `<details style="margin-top:10px"><summary style="cursor:pointer;color:#22d3ee">${escapeHtml(gName)} (${groups[gName].length})</summary>${studentsHtml}</details>`;
     });
+
     block.innerHTML = `
       <div class="topbar">
         <b>${escapeHtml(a.title)}</b>
-        <button class="danger" style="width:auto;padding:6px 12px;margin:0" onclick="deleteAssignment('${a.id}')">Sil</button>
+        <button class="danger small" onclick="deleteAssignment('${a.id}')">Sil</button>
       </div>
-      ${studentsHtml}
+      ${groupsHtml}
       <button style="margin-top:12px" onclick="saveAssignment('${a.id}')">Kaydet</button>
     `;
     el.appendChild(block);
+  });
+}
+
+// ---------- WEEKLY PLAN ----------
+window.saveWeek = async function() {
+  const label = document.getElementById('weekLabel').value.trim();
+  const startDate = document.getElementById('weekStartDate').value;
+  const topics = document.getElementById('weekTopics').value.trim();
+  if (!label || !startDate || !topics) { alert("Lütfen hafta etiketi, tarih ve konuları doldur."); return; }
+
+  const payload = { label, startDate, topics };
+
+  if (editingWeekId) {
+    await updateDoc(doc(db, "teachers", currentUser.uid, "weeklyPlan", editingWeekId), payload);
+  } else {
+    await addDoc(collection(db, "teachers", currentUser.uid, "weeklyPlan"), payload);
+  }
+  cancelWeekEdit();
+};
+
+window.editWeek = function(weekId) {
+  const w = weeklyPlanCache.find(x => x.id === weekId);
+  if (!w) return;
+  editingWeekId = weekId;
+  document.getElementById('weekLabel').value = w.label;
+  document.getElementById('weekStartDate').value = w.startDate;
+  document.getElementById('weekTopics').value = w.topics;
+  document.getElementById('weekSaveBtn').textContent = "Güncelle";
+  document.getElementById('weekCancelBtn').style.display = 'block';
+  window.scrollTo({ top: document.getElementById('weekLabel').offsetTop, behavior: 'smooth' });
+};
+
+window.cancelWeekEdit = function() {
+  editingWeekId = null;
+  document.getElementById('weekLabel').value = "";
+  document.getElementById('weekStartDate').value = "";
+  document.getElementById('weekTopics').value = "";
+  document.getElementById('weekSaveBtn').textContent = "Ekle";
+  document.getElementById('weekCancelBtn').style.display = 'none';
+};
+
+window.deleteWeek = async function(weekId) {
+  if (!confirm("Bu haftayı silmek istediğine emin misin?")) return;
+  await deleteDoc(doc(db, "teachers", currentUser.uid, "weeklyPlan", weekId));
+};
+
+function listenWeeklyPlan() {
+  const q = query(collection(db, "teachers", currentUser.uid, "weeklyPlan"), orderBy("startDate", "asc"));
+  return onSnapshot(q, (snap) => {
+    weeklyPlanCache = [];
+    snap.forEach(d => weeklyPlanCache.push({ id: d.id, ...d.data() }));
+    renderWeeklyPlan();
+  });
+}
+
+function renderWeeklyPlan() {
+  const el = document.getElementById('weeklyPlanList');
+  if (weeklyPlanCache.length === 0) { el.innerHTML = "Henüz hafta eklenmedi."; return; }
+  el.innerHTML = "";
+  weeklyPlanCache.forEach(w => {
+    const row = document.createElement('div');
+    row.className = 'week-row';
+    row.innerHTML = `
+      <div class="info">
+        <b>${escapeHtml(w.label)}</b> <span class="muted">(${w.startDate})</span>
+        <div>${escapeHtml(w.topics)}</div>
+      </div>
+      <div class="chips">
+        <button class="secondary small" onclick="editWeek('${w.id}')">Düzenle</button>
+        <button class="danger small" onclick="deleteWeek('${w.id}')">Sil</button>
+      </div>
+    `;
+    el.appendChild(row);
   });
 }
 
